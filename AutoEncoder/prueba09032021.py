@@ -1,29 +1,74 @@
+#%% Parte 1: Obtención de datos
+
 import MetaTrader5 as mt5
+from datetime import datetime
+import pandas as pd
+import tensorflow as tf
+import numpy as np
+import matplotlib.pyplot as plt
+from mytools import historyData
 
+#%%
 
-def historyData(Symbol):
-    mt5.initialize(server="ForexClub-MT5 Demo Server",login=500063649,password="hrOmcAAn")
-    # print(mt5.terminal_info())
-    # print(mt5.version())
-    listSymbols=mt5.symbols_get()
-    # [x.name for x in listSymbols]
-    # Symbol=np.random.choice(FXmajor, 1)[0]
-    print(Symbol)
-    pointValue=mt5.symbol_info(Symbol).point
-    # mt5.Buy("EURUSD", 0.1,price=11395,ticket=9)
-    Num_velas=1000
-    # Copying data to pandas data frame
-    # rates =  mt5.copy_rates_from_pos(Symbol, mt5.TIMEFRAME_M1, 0, Num_velas)
-    rates =  mt5.copy_rates_range(Symbol, mt5.TIMEFRAME_H1, datetime(2021, 1, 10), datetime.now())
-    # rates =  mt5.copy_rates_range("ES", mt5.TIMEFRAME_D1, datetime(2019, 1, 15), datetime(2019, 1, 25))
-    # rates =  mt5.copy_rates_from_pos(Symbol, mt5.TIMEFRAME_M1, 0, Num_velas)
+data=historyData('EURUSD')
+data
+# %% Parte 2: preprocesamiento de entrada y salida
+# thisData=data.Close.rolling(10).std().values
+# thisData=thisData[~np.isnan(thisData)]
+# %%
+nTicks=10
+ticksLookAhead=3
+dataset = tf.data.Dataset.from_tensor_slices(data.Close.values)
+# dataset = tf.data.Dataset.range(100)
+dataset = dataset.window(nTicks+ticksLookAhead, shift=ticksLookAhead, drop_remainder=True)
+dataset = dataset.flat_map(lambda window: window.batch(13))
+dataset = dataset.map(lambda window: (tf.expand_dims(window[:-ticksLookAhead], axis=0), window[-ticksLookAhead:]))
+dataset = dataset.shuffle(buffer_size=13)
+full_dataset=dataset.batch(10).prefetch(1)
 
-    # Deinitializing MT5 connection
-    mt5.shutdown()
-    # create DataFrame out of the obtained data
-    rates_frame = pd.DataFrame(rates)
-    # convert time in seconds into the datetime format
-    rates_frame.index=pd.to_datetime(rates_frame['time'], unit='s')
+dSize=len(list(full_dataset))
+train_dataset = full_dataset.take(dSize-10)
+test_dataset = full_dataset.skip(dSize-10)
+# val_dataset = test_dataset.skip(7)
+# test_dataset = test_dataset.take(7)
+for x,y in train_dataset:
+  print(x.numpy().shape, y.numpy())
+# %%
+model = tf.keras.Sequential([
+  # tf.keras.layers.Dense(6, activation=tf.nn.relu,input_shape=(None,10)),  # input shape required
+  tf.keras.layers.SimpleRNN(10, activation=tf.nn.relu,input_shape=(None,10)),
+  tf.keras.layers.Dense(10),
+  tf.keras.layers.Dense(3)
+])
+model.summary()
+# %%
+model.compile(loss="mse", optimizer=tf.keras.optimizers.SGD(lr=1e-3, momentum=0.9))
+history = model.fit(train_dataset,validation_data=test_dataset,epochs=50,verbose=2)
 
-    rates_frame.columns=['time', 'Open', 'High', 'Low', 'Close', 'tick_volume', 'spread','real_volume']
-    return rates_frame
+# %%
+datasetP = tf.data.Dataset.from_tensor_slices(thisData[-100:])
+# dataset = tf.data.Dataset.range(100)
+datasetP = datasetP.window(nTicks, shift=None, drop_remainder=True)
+datasetP = datasetP.flat_map(lambda window: window.batch(100))
+datasetP = datasetP.map(lambda window: tf.expand_dims(window[-100:], axis=0))
+datasetP = datasetP.shuffle(buffer_size=100)
+datasetP=datasetP.batch(5).prefetch(1)
+
+y=model.predict(datasetP)
+
+# %%
+plt.plot(range(100),thisData[-100:])
+plt.plot(range(100,130),y.flatten())
+# %%
+# list all data in history
+print(history.history.keys())
+# summarize history for accuracy
+# summarize history for loss
+plt.plot(history.history['loss'])
+plt.plot(history.history['val_loss'])
+plt.title('model loss')
+plt.ylabel('loss')
+plt.xlabel('epoch')
+plt.legend(['train', 'test'], loc='upper left')
+plt.show()
+# %%
