@@ -12,7 +12,8 @@ def calcCorr(str1,str2):
     return pd.Series.corr(d1.Close,d2.Close)
 
 # %%
-FXmajor=['EURUSD','GBPUSD','USDJPY','AUDUSD','USDCHF','NZDUSD','USDCAD']
+# FXmajor=['EURUSD','GBPUSD','USDJPY','AUDUSD','USDCHF','NZDUSD','USDCAD']
+FXmajor=['EURUSD','XAUUSD','NZDUSD','USDCAD','BRN','ES','WT','GBPUSD','USDCHF','YM','AUDUSD','NQ','USDJPY']
 # %%
 table=pd.DataFrame(columns= FXmajor, index=FXmajor)
 for i,x in enumerate(FXmajor):

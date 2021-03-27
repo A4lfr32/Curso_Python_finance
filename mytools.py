@@ -16,7 +16,7 @@ def historyData(Symbol):
     # Num_velas=10000
     # Copying data to pandas data frame
     # rates =  mt5.copy_rates_from_pos(Symbol, mt5.TIMEFRAME_M1, 0, Num_velas)
-    rates =  mt5.copy_rates_range(Symbol, mt5.TIMEFRAME_M15, datetime(2021, 1, 1), datetime.now())
+    rates =  mt5.copy_rates_range(Symbol, mt5.TIMEFRAME_M15, datetime(2021, 3, 1), datetime.now())
     # rates =  mt5.copy_rates_range("ES", mt5.TIMEFRAME_D1, datetime(2019, 1, 15), datetime(2019, 1, 25))
     # rates =  mt5.copy_rates_from_pos(Symbol, mt5.TIMEFRAME_M1, 0, Num_velas)
 
